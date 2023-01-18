@@ -1,10 +1,14 @@
 """Example script to load 1st image from instagram post and upload to
-telegram @like bot with emojis after.
+telegram @like bot with emojis after, and finally perform sending prepared
+post to a destination chat.
+
+It performs action each interval for a list of posts.
 
 For instagram - simple aiohttp requests;
 For telegram bot chat - telethon (on user mode).
 """
 import asyncio
+import logging
 
 import aiohttp
 from pydantic import BaseSettings
@@ -13,9 +17,40 @@ from dotenv import load_dotenv
 
 # Load env with settings
 load_dotenv('../.env')
+logging.basicConfig(
+    format=u'%(levelname)-8s | %(asctime)s | %(message)s | %(filename)+13s',
+    level='INFO',
+)
+logger = logging.getLogger(__name__)
+
+# It works with @like bot flow (image -> emojis -> picture with publish button).
+TG_BOT_USERNAME = '@like'
+
+WORKER_DELAY = 3600 * 24
 
 
-async def get_photo_from_post(post_url: str):
+# Env settings.
+class Settings(BaseSettings):
+    TG_SESSION: str = 'telegram_session'
+    TG_API_HASH: str
+    TG_API_ID: int
+    # To notify about a problem.
+    TG_ADMIN_ID: int = 0
+    TG_DESTINATION_ENTITY: str = 'me'
+
+    INSTAGRAM_POSTS: list[str] = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
+
+    class Config:
+        case_sensitive = True
+
+
+# Client init.
+settings = Settings()
+client = TelegramClient(settings.TG_SESSION, settings.TG_API_ID, settings.TG_API_HASH)
+
+
+# Instagram methods.
+async def get_instagram_post_photo(post_url: str):
     url_to_image = f'{post_url}media/?size=l'
 
     async with aiohttp.ClientSession() as session:
@@ -24,57 +59,74 @@ async def get_photo_from_post(post_url: str):
             if response.status == 200:
                 return await response.read()
 
-            print(f'Error with post {post_url}')
+            logger.info(f'Error with post {post_url}')
             raise Exception
 
 
-class Settings(BaseSettings):
-    TG_SESSION: str = 'telegram_session'
-    TG_API_HASH: str
-    TG_API_ID: int
-    TG_BOT_USERNAME: str = '@like'
-
-    INSTAGRAM_REQUEST_BATCH_PER_SECOND: int = 10
-
-    class Config:
-        case_sensitive = True
-
-
-settings = Settings()
-client = TelegramClient(settings.TG_SESSION, settings.TG_API_ID, settings.TG_API_HASH)
+# Telethon methods.
+async def _send_image_with_emoji(image: bytes):
+    entity = await client.get_entity(TG_BOT_USERNAME)
+    await client.send_message(
+        entity,
+        file=image
+    )
+    await client.send_message(
+        entity,
+        '😡 / 😔 / 😐 / ☺️ / 😍',
+    )
 
 
-async def send_instagram_post_to_telegram_bot(post_url: str):
-    entity = await client.get_entity('@like')
+async def _get_prepared_query_with_image():
+    messages = await client.get_messages(TG_BOT_USERNAME)
+    message_last = messages[0]
+    if not message_last.buttons:
+        return
+
+    # TODO: more checks
+    inline_query = message_last.buttons[1][0].inline_query
+    logger.info(f'Got inline query {inline_query = }')
+    query = await client.inline_query(TG_BOT_USERNAME, inline_query)
+    return query[0]
+
+
+async def _get_inline_query_from_bot(image: bytes):
+    async with asyncio.Lock():
+        await _send_image_with_emoji(image)
+        await asyncio.sleep(5)
+        return await _get_prepared_query_with_image()
+
+
+async def send_instagram_post_with_emoji(post_url: str, destination_chat: str):
     me = await client.get_me()
     username = me.username
-    print(f'U logged as {username}')
+    logger.info(f'U logged as {username}')
 
-    image = await get_photo_from_post(post_url)
-    print(f'Got image from inst {image}')
+    image = await get_instagram_post_photo(post_url)
+    logger.info(f'Got image from inst {image}')
 
-    async with asyncio.Lock():
-        await client.send_message(
-            entity,
-            file=image
-        )
-        await client.send_message(
-            entity,
-            '😡 / 😔 / 😐 / ☺️ / 😍',
-        )
+    query = await _get_inline_query_from_bot(image)
+
+    destination_entity = await client.get_entity(destination_chat)
+    result = await query.click(destination_entity)
+
+    logger.info(f'Finally sent, got {result = }')
 
 
+# Script logic.
 async def main_impl():
-    # TODO: insert from here
-    # TODO: user argparser
-    urls = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
+    for idx, post_url in enumerate(settings.INSTAGRAM_POSTS):
+        try:
+            await send_instagram_post_with_emoji(post_url, settings.TG_DESTINATION_ENTITY)
+        except Exception as e:
+            await client.send_message(settings.TG_ADMIN_ID, f"Problem occurred {e}, bot stopped.")
+            raise e
 
-    for i in range(0, len(urls), settings.INSTAGRAM_REQUEST_BATCH_PER_SECOND):
-        tasks = [
-            send_instagram_post_to_telegram_bot(url) for url in urls[i:i + settings.INSTAGRAM_REQUEST_BATCH_PER_SECOND]
-        ]
-        await asyncio.gather(*tasks)
-        await asyncio.sleep(1)
+        if idx + 1 == len(settings.INSTAGRAM_POSTS):
+            logger.info('Last post reached, break the process.')
+            return await client.send_message(settings.TG_ADMIN_ID, 'Last post reached, break the process.')
+
+        logger.info(f'Sleep for {WORKER_DELAY}...')
+        await asyncio.sleep(WORKER_DELAY)
 
 
 if __name__ == '__main__':
