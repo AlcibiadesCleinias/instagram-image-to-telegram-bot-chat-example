@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir --upgrade -r /opt/requirements.txt
 
 COPY src/ /opt/
 
-ENTRYPOINT ["python", "main.py"]
+CMD ["tail", "-f", "/dev/null"]

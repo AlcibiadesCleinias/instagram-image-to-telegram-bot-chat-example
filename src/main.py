@@ -16,7 +16,7 @@ from telethon import TelegramClient
 from dotenv import load_dotenv
 
 # Load env with settings
-load_dotenv('../.env')
+load_dotenv('.env')
 logging.basicConfig(
     format=u'%(levelname)-8s | %(asctime)s | %(message)s | %(filename)+13s',
     level='INFO',
@@ -34,8 +34,9 @@ class Settings(BaseSettings):
     TG_SESSION: str = 'telegram_session'
     TG_API_HASH: str
     TG_API_ID: int
-    # To notify about a problem.
+    # To notify about problems and flow end.
     TG_ADMIN_ID: int = 0
+    # To where you want to sent a result of @like bot.
     TG_DESTINATION_ENTITY: str = 'me'
 
     INSTAGRAM_POSTS: list[str] = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
