@@ -119,7 +119,7 @@ async def main_impl():
         try:
             await send_instagram_post_with_emoji(post_url, settings.TG_DESTINATION_ENTITY)
         except Exception as e:
-            await client.send_message(settings.TG_ADMIN_ID, f"Problem occurred {e}, bot stopped.")
+            await client.send_message(settings.TG_ADMIN_ID, f"Problem occurred {e} with post {post_url}, pass.")
             raise e
 
         if idx + 1 == len(settings.INSTAGRAM_POSTS):
