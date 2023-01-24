@@ -9,6 +9,7 @@ For telegram bot chat - telethon (on user mode).
 """
 import asyncio
 import logging
+from typing import Union
 
 import aiohttp
 from pydantic import BaseSettings
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
     # To notify about problems and flow end.
     TG_ADMIN_ID: int = 0
     # To where you want to sent a result of @like bot.
-    TG_DESTINATION_ENTITY: str = 'me'
+    TG_DESTINATION_ENTITY: Union[int, str] = 'me'
 
     INSTAGRAM_POSTS: list[str] = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
 
@@ -97,7 +98,7 @@ async def _get_inline_query_from_bot(image: bytes):
         return await _get_prepared_query_with_image()
 
 
-async def send_instagram_post_with_emoji(post_url: str, destination_chat: str):
+async def send_instagram_post_with_emoji(post_url: str, destination_chat: Union[int, str]):
     me = await client.get_me()
     username = me.username
     logger.info(f'U logged as {username}')
