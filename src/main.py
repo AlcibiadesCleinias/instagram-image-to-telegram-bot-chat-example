@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 TG_BOT_USERNAME = '@like'
 
 WORKER_DELAY = 3600 * 24
+BOT_TO_BOT_MESSAGING_DELAY = 7
 
 
 # Env settings.
@@ -66,12 +67,13 @@ async def get_instagram_post_photo(post_url: str):
 
 
 # Telethon methods.
-async def _send_image_with_emoji(image: bytes):
+async def _send_image_with_emoji(image: bytes, delay: int = 0):
     entity = await client.get_entity(TG_BOT_USERNAME)
     await client.send_message(
         entity,
         file=image
     )
+    await asyncio.sleep(delay)
     await client.send_message(
         entity,
         '😡 / 😔 / 😐 / ☺️ / 😍',
@@ -93,8 +95,8 @@ async def _get_prepared_query_with_image():
 
 async def _get_inline_query_from_bot(image: bytes):
     async with asyncio.Lock():
-        await _send_image_with_emoji(image)
-        await asyncio.sleep(5)
+        await _send_image_with_emoji(image, BOT_TO_BOT_MESSAGING_DELAY)
+        await asyncio.sleep(BOT_TO_BOT_MESSAGING_DELAY)
         return await _get_prepared_query_with_image()
 
 
