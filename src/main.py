@@ -125,7 +125,6 @@ async def main_impl():
             _msg = f"Problem occurred {e} with post {post_url}, pass."
             await client.send_message(settings.TG_ADMIN_ID, _msg)
             logger.exception(_msg)
-            raise e
 
         if idx + 1 == len(settings.INSTAGRAM_POSTS):
             logger.info('Last post reached, break the process.')
