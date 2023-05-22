@@ -106,6 +106,8 @@ async def send_instagram_post_with_emoji(post_url: str, destination_chat: Union[
     logger.info(f'U logged as {username}')
 
     image = await get_instagram_post_photo(post_url)
+    if image.name and image.name == "unnamed":
+        raise Exception('Unnamed image, thus it is Instagram empty file.')
     logger.info(f'Got image from inst {image}')
 
     query = await _get_inline_query_from_bot(image)
