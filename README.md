@@ -2,6 +2,10 @@
 Example script to load 1st image from instagram post and upload to
 telegram @like bot with emojis after.
 
+## Stack
+- For instagram - simple aiohttp requests;
+- For telegram bot chat - telethon (on user mode).
+
 _This script consists of such periodic tasks in advance._
 
 _It designed to use .env via dotenv_

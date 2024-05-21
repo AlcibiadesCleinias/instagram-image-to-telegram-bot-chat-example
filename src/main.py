@@ -52,6 +52,9 @@ settings = Settings()
 client = TelegramClient(settings.TG_SESSION, settings.TG_API_ID, settings.TG_API_HASH)
 
 
+class InstagramInvalidImageResponse(Exception):
+    pass
+
 # Instagram methods.
 async def get_instagram_post_photo(post_url: str):
     url_to_image = f'{post_url}media/?size=l'
@@ -60,7 +63,15 @@ async def get_instagram_post_photo(post_url: str):
         async with session.get(url=url_to_image) as response:
 
             if response.status == 200:
-                return await response.read()
+                read_image = await response.read()
+
+                # Additional check if realy image.
+                if (not hasattr(read_image, '__len__')):
+                    logger.warning(f"[get_instagram_post_photo] Image from url {url_to_image} has no len attribute. "
+                                   f"Received object: {read_image}.")
+                    raise InstagramInvalidImageResponse()
+
+                return read_image
 
             logger.info(f'Error with post {post_url}')
             raise Exception
@@ -95,7 +106,9 @@ async def _get_prepared_query_with_image():
 
 async def _get_inline_query_from_bot(image: bytes):
     async with asyncio.Lock():
+        # Send image to bot, then send emojies to apply to the picture (@like bot logic).
         await _send_image_with_emoji(image, BOT_TO_BOT_MESSAGING_DELAY)
+        # Wait before preview of image with emojies loaded for the user.
         await asyncio.sleep(BOT_TO_BOT_MESSAGING_DELAY)
         return await _get_prepared_query_with_image()
 
@@ -116,8 +129,10 @@ async def send_instagram_post_with_emoji(post_url: str, destination_chat: Union[
     logger.info(f'Finally sent, got {result = }')
 
 
-# Script logic.
 async def main_impl():
+    """Main Script logic.
+    If error happens with the flow it sleeps instead of retry with the next image.
+    """
     for idx, post_url in enumerate(settings.INSTAGRAM_POSTS):
         try:
             await send_instagram_post_with_emoji(post_url, settings.TG_DESTINATION_ENTITY)
