@@ -1,6 +1,6 @@
 # instagram-image-to-telegram-bot-chat-example
 Example script to load 1st image from instagram post and upload to
-telegram @like bot with emojis after.
+telegram @like bot, append emojis, and finally send to the target chat.
 
 ## Stack
 - For instagram - simple aiohttp requests;
