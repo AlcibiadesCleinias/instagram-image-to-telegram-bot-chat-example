@@ -80,11 +80,16 @@ async def get_instagram_post_photo(post_url: str):
 # Telethon methods.
 async def _send_image_with_emoji(image: bytes, delay: int = 0):
     entity = await client.get_entity(TG_BOT_USERNAME)
+    # Flush previous state.
+    await client.send_message('/start')
+    await asyncio.sleep(delay)
+
     await client.send_message(
         entity,
         file=image
     )
     await asyncio.sleep(delay)
+
     await client.send_message(
         entity,
         '😡 / 😔 / 😐 / ☺️ / 😍',
