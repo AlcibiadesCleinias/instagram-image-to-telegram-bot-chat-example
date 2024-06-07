@@ -9,7 +9,7 @@ For telegram bot chat - telethon (on user mode).
 """
 import asyncio
 import logging
-from typing import Union
+from typing import Union, List
 
 import aiohttp
 from pydantic import BaseSettings
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # To where you want to sent a result of @like bot.
     TG_DESTINATION_ENTITY: Union[int, str] = 'me'
 
-    INSTAGRAM_POSTS: list[str] = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
+    INSTAGRAM_POSTS: List[str] = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
 
     class Config:
         case_sensitive = True
