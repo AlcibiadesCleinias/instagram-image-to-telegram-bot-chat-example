@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     # To where you want to sent a result of @like bot.
     TG_DESTINATION_ENTITY: Union[int, str] = 'me'
 
+    DELAY_BEFORE_REPEAT_INSTAGRAM_REQUEST: int = 60
+
     INSTAGRAM_POSTS: List[str] = ['https://www.instagram.com/p/Ckh0_3eMrzb/']
 
     class Config:
@@ -53,6 +55,9 @@ client = TelegramClient(settings.TG_SESSION, settings.TG_API_ID, settings.TG_API
 
 
 class InstagramInvalidImageResponse(Exception):
+    pass
+
+class InstagramRequestLoginException(Exception):
     pass
 
 # Instagram methods.
@@ -70,6 +75,11 @@ async def get_instagram_post_photo(post_url: str):
                     logger.warning(f"[get_instagram_post_photo] Image from url {url_to_image} has no len attribute. "
                                    f"Received object: {read_image}.")
                     raise InstagramInvalidImageResponse()
+
+                if read_image.startswith(b'<!DOCTYPE html>') and "https://www.instagram.com/accounts/login" in read_image.decode():
+                    logger.warning(f"[get_instagram_post_photo] Image from url {url_to_image} is not an image. "
+                                   f"Received object started with <!DOCTYPE html> that possibly means it is a login page.")
+                    raise InstagramRequestLoginException()
 
                 return read_image
 
@@ -123,7 +133,16 @@ async def send_instagram_post_with_emoji(post_url: str, destination_chat: Union[
     username = me.username
     logger.info(f'U logged as {username}')
 
-    image = await get_instagram_post_photo(post_url)
+    try:
+        image = await get_instagram_post_photo(post_url)
+    except InstagramRequestLoginException:
+        _msg = f"Instagram request login page, repeat 1 more time after {settings.DELAY_BEFORE_REPEAT_INSTAGRAM_REQUEST} sec delay."
+        await client.send_message(settings.TG_ADMIN_ID, _msg)
+        logger.warning(_msg)
+
+        await asyncio.sleep(settings.DELAY_BEFORE_REPEAT_INSTAGRAM_REQUEST)
+        image = await get_instagram_post_photo(post_url)
+
     logger.info(f'Got image from inst {image}')
 
     query = await _get_inline_query_from_bot(image)
